@@ -1,0 +1,44 @@
+# configuracion del jenkins
+- name: jenkins
+  hosts: main
+  connection: local
+  vars:
+    java: openjdk-11-jdk
+    jenkins:
+      apt-key-url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+      repo-url: deb https://pkg.jenkins.io/debian-stable binary/
+
+  tasks:  
+    - name: apt-update
+      apt:
+        force_apt_get: yes
+        upgrade: yes
+
+    - name: install-java
+      apt:
+        name: "{{java}}"
+
+    - name: configure-jenkins-package-repo
+      apt_repository:
+        repo: "{{jenkins['repo-url']}}"
+        filename: 'jenkins'
+        state: present
+        
+    - name: apt-update
+      apt:
+        force_apt_get: yes
+        upgrade: yes
+
+    - name: install-jenkins
+      apt:
+        name: jenkins
+        state: present    
+      notify: 
+        - jenkins-start
+
+  handlers:
+    - name: jenkins-start
+      service:
+        name: jenkins
+        enabled: yes
+        state: started     

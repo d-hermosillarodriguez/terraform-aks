@@ -66,3 +66,57 @@ resource "azurerm_kubernetes_cluster" "aks-demo" {
     network_policy = var.aks_net_policy
   }
 }
+#jenkins
+resource "azurerm_linux_virtual_machine" "vm-jenkins" {
+    name = var.hostname
+    resource_group_name = azurerm_resource_group.rg-demo.name
+    location = azurerm_resource_group.rg-demo.location
+    size = "Standard_B1s"
+    network_interface_ids = [azurerm_network_interface.netinter-demo.id]
+    os_disk {
+      caching = "ReadWrite"
+      storage_account_type = "Standard_LRS"
+    }
+    source_image_reference {
+      publisher = "Canonical"
+      offer = "UbuntuServer"
+      sku = "16.04-LTS"
+      version = "Latest"
+    }
+    computer_name = var.hostname
+    admin_username = var.username
+    admin_password = var.passwd
+    disable_password_authentication = false
+ }
+ resource "null_resource" remoteExecProvisionerWFolder {
+
+  provisioner "file" {
+    source      = "ansible_docts/inventory.txt"
+    destination = "/tmp/inventory.txt"
+  }
+
+  provisioner "file" {
+    source      = "ansible_docts/playbook.yml"
+    destination = "/tmp/playbook.yml"
+  }
+  connection {
+    host     = azurerm_public_ip.pip-demo.ip_address
+    type     = "ssh"
+    user     = var.username
+    password = var.passwd
+    agent    = "false"
+  }
+}
+#jenkins ext
+resource "azurerm_virtual_machine_extension" "vmext" {
+    virtual_machine_id = azurerm_linux_virtual_machine.vm-jenkins.id
+    name  = "jenkins-vmext"
+    publisher            = "Microsoft.Azure.Extensions"
+    type                 = "CustomScript"
+    type_handler_version = "2.0"
+    protected_settings = <<PROT
+    {
+        "script": "${base64encode(file(var.file))}"
+    }
+    PROT
+}
